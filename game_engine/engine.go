@@ -14,10 +14,11 @@ type GameEngine struct {
 	mu               sync.RWMutex
 	totalResponses   int64
 	correctResponses int64
-	startTime        time.Time
+	startTime        *time.Time
 	winnerFoundAt    *time.Time
 	eventChan        chan GameEvent
 	stopChan         chan bool
+	firstResponseAt  *time.Time
 }
 
 type GameEvent struct {
@@ -28,7 +29,6 @@ type GameEvent struct {
 
 func NewGameEngine() *GameEngine {
 	g := &GameEngine{
-		startTime: time.Now(),
 		eventChan: make(chan GameEvent, 1000),
 		stopChan:  make(chan bool),
 	}
@@ -60,21 +60,33 @@ func (g *GameEngine) handleEvent(event GameEvent) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	
+	// Set start time on first response
+	if g.firstResponseAt == nil {
+		now := time.Now()
+		g.firstResponseAt = &now
+		g.startTime = &now
+	}
+	
 	if g.winner == nil && event.Response.IsCorrect {
 		g.winner = &event.Response
 		now := time.Now()
 		g.winnerFoundAt = &now
 		
-		timeTaken := now.Sub(g.startTime)
+		var timeTaken time.Duration
+		if g.startTime != nil {
+			timeTaken = now.Sub(*g.startTime)
+		} else {
+			timeTaken = 0
+		}
 		
 		fmt.Println("\n╔══════════════════════════════════════════╗")
-		fmt.Println("║            🎉 WINNER FOUND! 🎉            ║")
+		fmt.Println("║           🎉 WINNER FOUND! 🎉           ║")
 		fmt.Println("╠══════════════════════════════════════════╣")
-		fmt.Printf("║ Winner ID:     %-26d ║\n", event.Response.UserID)
-		fmt.Printf("║ Answer:        %-26s ║\n", event.Response.Answer)
-		fmt.Printf("║ Time to win:   %-26v ║\n", timeTaken)
-		fmt.Printf("║ Total responses: %-24d ║\n", atomic.LoadInt64(&g.totalResponses))
-		fmt.Printf("║ Correct answers: %-24d ║\n", atomic.LoadInt64(&g.correctResponses))
+		fmt.Printf("║ Winner ID:      %-25d║\n", event.Response.UserID)
+		fmt.Printf("║ Answer:         %-25s║\n", event.Response.Answer)
+		fmt.Printf("║ Time to win:    %-25v║\n", timeTaken)
+		fmt.Printf("║ Total responses: %-24d║\n", atomic.LoadInt64(&g.totalResponses))
+		fmt.Printf("║ Correct answers: %-24d║\n", atomic.LoadInt64(&g.correctResponses))
 		fmt.Println("╚══════════════════════════════════════════╝")
 	}
 }
@@ -94,10 +106,10 @@ func (g *GameEngine) printMetrics() {
 				hasWinner := g.winner != nil
 				g.mu.RUnlock()
 				
-				if !hasWinner {
+				if !hasWinner && g.startTime != nil {
 					percentage := float64(correct) / float64(total) * 100
 					fmt.Printf("📊 Live Stats | Total: %d | Correct: %d (%.1f%%) | Duration: %v\n", 
-						total, correct, percentage, time.Since(g.startTime).Round(time.Second))
+						total, correct, percentage, time.Since(*g.startTime).Round(time.Second))
 				}
 			}
 		case <-g.stopChan:
@@ -148,18 +160,18 @@ func (g *GameEngine) Reset() {
 	fmt.Println("╠══════════════════════════════════════════╣")
 	
 	if g.winner != nil {
-		fmt.Printf("║ Previous winner: User %-18d ║\n", g.winner.UserID)
+		fmt.Printf("║ Previous winner: User %-19d║\n", g.winner.UserID)
 	}
 	
 	total := atomic.LoadInt64(&g.totalResponses)
 	correct := atomic.LoadInt64(&g.correctResponses)
 	
-	fmt.Printf("║ Total responses: %-23d ║\n", total)
-	fmt.Printf("║ Correct responses: %-21d ║\n", correct)
+	fmt.Printf("║ Total responses: %-24d║\n", total)
+	fmt.Printf("║ Correct responses: %-22d║\n", correct)
 	
 	if total > 0 {
 		percentage := float64(correct) / float64(total) * 100
-		fmt.Printf("║ Success rate: %.1f%%                      ║\n", percentage)
+		fmt.Printf("║ Success rate: %-28.1f%%║\n", percentage)
 	}
 	
 	fmt.Println("╚══════════════════════════════════════════╝")
@@ -167,8 +179,9 @@ func (g *GameEngine) Reset() {
 	g.winner = nil
 	atomic.StoreInt64(&g.totalResponses, 0)
 	atomic.StoreInt64(&g.correctResponses, 0)
-	g.startTime = time.Now()
+	g.startTime = nil
 	g.winnerFoundAt = nil
+	g.firstResponseAt = nil
 }
 
 func (g *GameEngine) GetStats() map[string]interface{} {
@@ -182,14 +195,19 @@ func (g *GameEngine) GetStats() map[string]interface{} {
 		"total_responses":   total,
 		"correct_responses": correct,
 		"has_winner":        g.winner != nil,
-		"game_duration":     time.Since(g.startTime).Seconds(),
+	}
+	
+	if g.startTime != nil {
+		stats["game_duration"] = time.Since(*g.startTime).Seconds()
+	} else {
+		stats["game_duration"] = 0.0
 	}
 	
 	if g.winner != nil {
 		stats["winner_user_id"] = g.winner.UserID
 		stats["winner_answer"] = g.winner.Answer
-		if g.winnerFoundAt != nil {
-			stats["time_to_win"] = g.winnerFoundAt.Sub(g.startTime).Seconds()
+		if g.winnerFoundAt != nil && g.startTime != nil {
+			stats["time_to_win"] = g.winnerFoundAt.Sub(*g.startTime).Seconds()
 		}
 	}
 	
