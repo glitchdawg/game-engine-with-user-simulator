@@ -46,7 +46,7 @@ func (m *MockEngine) simulateUser(userID int) {
 
 	isCorrect := rand.Float32() < 0.3
 	
-	delay := time.Duration(rand.Intn(1000)) * time.Millisecond
+	delay := time.Duration(rand.Intn(991)+10) * time.Millisecond
 	time.Sleep(delay)
 
 	response := UserResponse{

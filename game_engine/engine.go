@@ -75,7 +75,7 @@ func (g *GameEngine) handleEvent(event GameEvent) {
 		fmt.Printf("║ Time to win:   %-26v ║\n", timeTaken)
 		fmt.Printf("║ Total responses: %-24d ║\n", atomic.LoadInt64(&g.totalResponses))
 		fmt.Printf("║ Correct answers: %-24d ║\n", atomic.LoadInt64(&g.correctResponses))
-		fmt.Println("╚══════════════════════════════════════════╝\n")
+		fmt.Println("╚══════════════════════════════════════════╝")
 	}
 }
 
@@ -162,7 +162,7 @@ func (g *GameEngine) Reset() {
 		fmt.Printf("║ Success rate: %.1f%%                      ║\n", percentage)
 	}
 	
-	fmt.Println("╚══════════════════════════════════════════╝\n")
+	fmt.Println("╚══════════════════════════════════════════╝")
 	
 	g.winner = nil
 	atomic.StoreInt64(&g.totalResponses, 0)
