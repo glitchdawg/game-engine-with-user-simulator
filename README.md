@@ -1,17 +1,6 @@
 # Game Engine with User Simulator
 
 A Go-based backend system that simulates multiple users answering game questions, evaluates responses in real-time, and announces winners.
-
-## Features
-
-✅ **Concurrent User Simulation** - Handle 1000+ concurrent users  
-✅ **Real-time Evaluation** - Process responses as they arrive  
-✅ **Channel-based Event Handling** - Efficient event-driven architecture  
-✅ **Live Metrics** - Track correct/incorrect answers in real-time  
-✅ **Single API Endpoint** - Clean `/submit` endpoint  
-✅ **Interactive CLI** - Built-in commands for stats and reset  
-✅ **Race Condition Free** - Thread-safe with mutexes and atomic operations  
-
 ## Architecture
 
 ### 1. Mock User Engine
